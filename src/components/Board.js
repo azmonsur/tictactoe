@@ -1,8 +1,13 @@
 import React, { Component } from "react";
+import { withRouter, Redirect } from "react-router-dom";
+import About from "./About";
 
 class Board extends Component {
   state = {
     rows: [],
+    allowStopGame: null,
+    player1: null,
+    player2: null,
     clicked: [],
     players: [],
     current_player: "X",
@@ -26,11 +31,24 @@ class Board extends Component {
     const rows = [];
     const { num_row, num_col } = this.state;
 
+    let player1 = null,
+      player2 = null,
+      allowStopGame = null;
+    if (this.props.location.state) {
+      player1 = this.props.location.state.player1;
+      player2 = this.props.location.state.player2;
+      allowStopGame = this.props.location.state.allowStopGame;
+    }
+
     for (let i = 0; i < num_row * num_col; i++) {
       // Create index each cell
       rows.push(i);
     }
 
+    this.setState({ player1 });
+    this.setState({ current_player: "X" });
+    this.setState({ allowStopGame });
+    this.setState({ player2 });
     this.setState({ rows: rows });
     this.setState({ clicked: new Array(num_col * num_row).fill(false) });
     this.setState({ players: new Array(num_col * num_row).fill("") });
@@ -99,9 +117,11 @@ class Board extends Component {
     });
 
     // change current player
-    this.setState({
-      current_player: this.state.current_player === "X" ? "O" : "X",
-    });
+    setTimeout(() => {
+      this.setState({
+        current_player: this.state.current_player === "X" ? "O" : "X",
+      });
+    }, 1);
 
     const [c, r] = [
       row % this.state.num_col,
@@ -125,11 +145,51 @@ class Board extends Component {
 
     if (this.checkForWinner()) {
       this.setState({ game_over: true });
+      this.setState({ allowStopGame: false });
       this.setState({ clicked: new Array(9).fill(true) });
     }
+
+    setTimeout(() => {
+      if (
+        this.state.player2 === "Computer" &&
+        this.state.current_player === "O" &&
+        !this.checkForWinner()
+      ) {
+        //this.setState({ current_player: "O" });
+        this.computerToPlay();
+      }
+    }, 500);
+  };
+
+  computerToPlay = () => {
+    let randomChoice = this.state.invalid_move[
+      Math.floor(Math.random() * this.state.invalid_move.length)
+    ];
+
+    randomChoice += Math.floor(Math.random() * 4);
+
+    if (randomChoice > 8) {
+      randomChoice -= 4;
+    }
+    while (this.state.invalid_move.includes(randomChoice)) {
+      randomChoice = this.state.invalid_move[
+        Math.floor(Math.random() * this.state.invalid_move.length)
+      ];
+      randomChoice += Math.floor(Math.random() * 5);
+
+      if (randomChoice > 8) {
+        randomChoice -= 5;
+      }
+    }
+
+    //this.setState({ current_player: "O" });
+    this.handleButtonClick(randomChoice);
   };
 
   render() {
+    if (!this.props.location.state) {
+      return <Redirect to={{ pathname: "/" }} />;
+    }
     const { num_row, num_col } = this.state;
 
     return (
@@ -138,17 +198,17 @@ class Board extends Component {
           <div
             style={{
               transform: this.state.game_over
-                ? "scale(1) translate(-50%, -50%)"
-                : "scale(0)",
+                ? "translate(-50%, -50%)"
+                : "translate(-50%, -500%)",
             }}
             className="game-over"
           >
             Game Over <br />
             <span style={{ fontSize: "0.6em" }}>
               {this.checkForWinner() === "X"
-                ? "Player X wins"
+                ? `${this.state.player1} wins`
                 : this.checkForWinner() === "O"
-                ? "Player O wins"
+                ? `${this.state.player2} wins`
                 : "It is a draw"}
             </span>
           </div>
@@ -173,16 +233,26 @@ class Board extends Component {
             </button>
           ))}
         </div>
-        <button
-          onClick={() => this.drawBoard()}
-          className="reset"
-          disabled={!this.state.game_over}
-        >
-          Reset Board
-        </button>
+        <About />
+        <div className="action-buttons">
+          <button
+            onClick={() => this.drawBoard()}
+            className="reset"
+            disabled={!this.state.game_over}
+          >
+            Reset Board
+          </button>
+          <button
+            onClick={() => this.props.history.push("/")}
+            className="new-game"
+            disabled={this.state.allowStopGame}
+          >
+            New Game
+          </button>
+        </div>
       </div>
     );
   }
 }
 
-export default Board;
+export default withRouter(Board);
